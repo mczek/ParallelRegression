@@ -1,29 +1,29 @@
-\name{test-package}
-\alias{test-package}
-\alias{test}
+\name{ParallelRegression-package}
+\alias{ParallelRegression-package}
+\alias{ParallelRegression}
 \docType{package}
 \title{
-\packageTitle{test}
+\packageTitle{ParallelRegression}
 }
 \description{
-\packageDescription{test}
+\packageDescription{ParallelRegression}
 }
 \details{
 
 The DESCRIPTION file:
-\packageDESCRIPTION{test}
-\packageIndices{test}
+\packageDESCRIPTION{ParallelRegression}
+\packageIndices{ParallelRegression}
 ~~ An overview of how to use the package, including the most important functions ~~
 }
 \author{
-\packageAuthor{test}
+\packageAuthor{ParallelRegression}
 
-Maintainer: \packageMaintainer{test}
+Maintainer: \packageMaintainer{ParallelRegression}
 }
 \references{
 ~~ Literature or other references for background information ~~
 }
-~~ Optionally other standard keywords, one per line, from file KEYWORDS in the R documentation directory ~~
+
 \keyword{ package }
 \seealso{
 ~~ Optional links to other man pages, e.g. ~~

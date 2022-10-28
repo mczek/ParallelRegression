@@ -54,3 +54,11 @@ Rcpp::List rcppeigen_bothproducts(const Eigen::VectorXd & x) {
     return Rcpp::List::create(Rcpp::Named("outer")=op,
                               Rcpp::Named("inner")=ip);
 }
+
+
+// test function
+//
+// [[Rcpp::export]]
+double rcpp_test_first_element(const Eigen::VectorXd & x) {
+  return x[0];
+}

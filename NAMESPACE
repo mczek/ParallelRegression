@@ -1,4 +1,5 @@
-useDynLib(test)
+useDynLib(ParallelRegression)
 import(RcppEigen)
 importFrom(Rcpp, evalCpp)
-export("Rcpp.fake.fun")
+export("rcppeigen_innerproduct")
+export("rcpp_test_first_element")

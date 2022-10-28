@@ -2,18 +2,22 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 rcppeigen_hello_world <- function() {
-    .Call('_test_rcppeigen_hello_world', PACKAGE = 'test')
+    .Call('_ParallelRegression_rcppeigen_hello_world', PACKAGE = 'ParallelRegression')
 }
 
 rcppeigen_outerproduct <- function(x) {
-    .Call('_test_rcppeigen_outerproduct', PACKAGE = 'test', x)
+    .Call('_ParallelRegression_rcppeigen_outerproduct', PACKAGE = 'ParallelRegression', x)
 }
 
 rcppeigen_innerproduct <- function(x) {
-    .Call('_test_rcppeigen_innerproduct', PACKAGE = 'test', x)
+    .Call('_ParallelRegression_rcppeigen_innerproduct', PACKAGE = 'ParallelRegression', x)
 }
 
 rcppeigen_bothproducts <- function(x) {
-    .Call('_test_rcppeigen_bothproducts', PACKAGE = 'test', x)
+    .Call('_ParallelRegression_rcppeigen_bothproducts', PACKAGE = 'ParallelRegression', x)
+}
+
+rcpp_test_first_element <- function(x) {
+    .Call('_ParallelRegression_rcpp_test_first_element', PACKAGE = 'ParallelRegression', x)
 }
 

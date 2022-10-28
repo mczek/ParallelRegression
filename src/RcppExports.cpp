@@ -13,7 +13,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 
 // rcppeigen_hello_world
 Eigen::MatrixXd rcppeigen_hello_world();
-RcppExport SEXP _test_rcppeigen_hello_world() {
+RcppExport SEXP _ParallelRegression_rcppeigen_hello_world() {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -23,7 +23,7 @@ END_RCPP
 }
 // rcppeigen_outerproduct
 Eigen::MatrixXd rcppeigen_outerproduct(const Eigen::VectorXd& x);
-RcppExport SEXP _test_rcppeigen_outerproduct(SEXP xSEXP) {
+RcppExport SEXP _ParallelRegression_rcppeigen_outerproduct(SEXP xSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -34,7 +34,7 @@ END_RCPP
 }
 // rcppeigen_innerproduct
 double rcppeigen_innerproduct(const Eigen::VectorXd& x);
-RcppExport SEXP _test_rcppeigen_innerproduct(SEXP xSEXP) {
+RcppExport SEXP _ParallelRegression_rcppeigen_innerproduct(SEXP xSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -45,7 +45,7 @@ END_RCPP
 }
 // rcppeigen_bothproducts
 Rcpp::List rcppeigen_bothproducts(const Eigen::VectorXd& x);
-RcppExport SEXP _test_rcppeigen_bothproducts(SEXP xSEXP) {
+RcppExport SEXP _ParallelRegression_rcppeigen_bothproducts(SEXP xSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -54,16 +54,28 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rcpp_test_first_element
+double rcpp_test_first_element(const Eigen::VectorXd& x);
+RcppExport SEXP _ParallelRegression_rcpp_test_first_element(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_test_first_element(x));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_test_rcppeigen_hello_world", (DL_FUNC) &_test_rcppeigen_hello_world, 0},
-    {"_test_rcppeigen_outerproduct", (DL_FUNC) &_test_rcppeigen_outerproduct, 1},
-    {"_test_rcppeigen_innerproduct", (DL_FUNC) &_test_rcppeigen_innerproduct, 1},
-    {"_test_rcppeigen_bothproducts", (DL_FUNC) &_test_rcppeigen_bothproducts, 1},
+    {"_ParallelRegression_rcppeigen_hello_world", (DL_FUNC) &_ParallelRegression_rcppeigen_hello_world, 0},
+    {"_ParallelRegression_rcppeigen_outerproduct", (DL_FUNC) &_ParallelRegression_rcppeigen_outerproduct, 1},
+    {"_ParallelRegression_rcppeigen_innerproduct", (DL_FUNC) &_ParallelRegression_rcppeigen_innerproduct, 1},
+    {"_ParallelRegression_rcppeigen_bothproducts", (DL_FUNC) &_ParallelRegression_rcppeigen_bothproducts, 1},
+    {"_ParallelRegression_rcpp_test_first_element", (DL_FUNC) &_ParallelRegression_rcpp_test_first_element, 1},
     {NULL, NULL, 0}
 };
 
-RcppExport void R_init_test(DllInfo *dll) {
+RcppExport void R_init_ParallelRegression(DllInfo *dll) {
     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
 }
