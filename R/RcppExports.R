@@ -17,7 +17,7 @@ rcppeigen_bothproducts <- function(x) {
     .Call('_ParallelRegression_rcppeigen_bothproducts', PACKAGE = 'ParallelRegression', x)
 }
 
-rcpp_test_first_element <- function(x) {
-    .Call('_ParallelRegression_rcpp_test_first_element', PACKAGE = 'ParallelRegression', x)
+logistic_regression <- function(x, y) {
+    .Call('_ParallelRegression_logistic_regression', PACKAGE = 'ParallelRegression', x, y)
 }
 

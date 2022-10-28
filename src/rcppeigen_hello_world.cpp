@@ -2,7 +2,7 @@
 
 // we only include RcppEigen.h which pulls Rcpp.h in for us
 #include <RcppEigen.h>
-
+#include <unsupported/Eigen/MatrixFunctions>
 // via the depends attribute we tell Rcpp to create hooks for
 // RcppEigen so that the build process will know what to do
 //
@@ -59,6 +59,23 @@ Rcpp::List rcppeigen_bothproducts(const Eigen::VectorXd & x) {
 // test function
 //
 // [[Rcpp::export]]
-double rcpp_test_first_element(const Eigen::VectorXd & x) {
-  return x[0];
+Eigen::MatrixXd logistic_regression(const Eigen::MatrixXd & x, const Eigen::VectorXd & y) {
+  Eigen::VectorXd beta = Eigen::VectorXf::Zero(x.cols(), 1).cast<double>();
+  // save X^T
+  Eigen::MatrixXd xT = x.transpose();
+  
+  // compute W
+  
+  Rcpp::Rcout << beta.rows() << "," << beta.cols() << "\n";
+  Rcpp::Rcout << x.rows() << "," << x.cols() << "\n";
+  Eigen::VectorXd p = (x * beta);
+  p = p.array().exp();
+  p = p.array() / (Eigen::VectorXd::Ones(x.rows()) + p).array();
+  p *= Eigen::VectorXd::Ones(x.rows()) - p;
+  Eigen::DiagonalMatrix<double, Eigen::Dynamic> W = Eigen::DiagonalMatrix<double, Eigen::Dynamic>(p);
+
+  for(int i=0; i<10; i++){
+    beta = (xT * W * x).inverse() * xT * W *(x*beta + W.inverse() * (y - p));
+  }
+  return beta;
 }
