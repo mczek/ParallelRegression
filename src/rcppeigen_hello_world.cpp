@@ -2,7 +2,12 @@
 
 // we only include RcppEigen.h which pulls Rcpp.h in for us
 #include <RcppEigen.h>
-#include <unsupported/Eigen/MatrixFunctions>
+using namespace Rcpp;
+
+
+// typedef Eigen::Map<Eigen::MatrixXd> MapMatd;
+
+
 // via the depends attribute we tell Rcpp to create hooks for
 // RcppEigen so that the build process will know what to do
 //
@@ -56,8 +61,32 @@ Rcpp::List rcppeigen_bothproducts(const Eigen::VectorXd & x) {
 }
 
 
+extern "C" SEXP Cdqrls(SEXP x, SEXP y, SEXP tol, SEXP chk);
+
+Eigen::VectorXd convert2Eigen(Eigen::VectorXd x){
+  return x;
+}
+
 Eigen::VectorXd LogisticFunction(Eigen::MatrixXd x, Eigen::VectorXd beta){
   return (1 + (-x*beta).array().exp()).pow(-1);
+}
+
+Eigen::MatrixXd WeightedLS(Eigen::MatrixXd x, Eigen::VectorXd y, Eigen::VectorXd w){
+  Eigen::VectorXd w_sqrt = w.array().sqrt();
+  Eigen::VectorXd w_inv = w.array().pow(-1);
+  
+  Eigen::DiagonalMatrix<double, Eigen::Dynamic> W_sqrt(w_sqrt);
+  Eigen::DiagonalMatrix<double, Eigen::Dynamic> W_inv(w_inv);
+  
+  x = W_sqrt * x;
+  y = W_sqrt * y;
+  
+  return x.householderQr().solve(y);
+  // Environment stats("package:stats");
+  // Function f = stats["C_Cqdrls"];
+  // SEXP beta = f(wrap(x), wrap(y), wrap(1e-8), wrap(false));
+  // const Eigen::Map<Eigen::MatrixXd> beta_map(as<Eigen::Map<Eigen::MatrixXd>>(beta));
+  // return Eigen::MatrixXd(beta_map);
 }
 
 
@@ -65,7 +94,7 @@ Eigen::VectorXd LogisticFunction(Eigen::MatrixXd x, Eigen::VectorXd beta){
 //
 // [[Rcpp::export]]
 Eigen::MatrixXd logistic_regression(const Eigen::MatrixXd & x, const Eigen::VectorXd & y) {
-  Eigen::VectorXd beta = Eigen::VectorXf::Ones(x.cols(), 1).cast<double>();
+  Eigen::VectorXd beta = Eigen::VectorXd::Ones(x.cols(), 1).cast<double>();
   Eigen::VectorXd beta_old = beta;
   // save X^T
   Eigen::MatrixXd xT = x.transpose();
@@ -76,14 +105,22 @@ Eigen::MatrixXd logistic_regression(const Eigen::MatrixXd & x, const Eigen::Vect
   double dev_old = 1000;
   double dev_new = 0;
   double dev = 0;
-  while(diff > 1e-3){
+  while(diff > 1e-8){
+    Rcpp::Rcout << "beta: \n" << beta << "\n";
     Eigen::VectorXd p = LogisticFunction(x, beta);
     Eigen::VectorXd variance = p.array() * (1 - p.array());
+    Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
+    Eigen::VectorXd Z = x * beta + modified_response;
+    beta = WeightedLS(x, Z, variance);
+    // variance = variance.array().sqrt();
     Eigen::DiagonalMatrix<double, Eigen::Dynamic> W(variance);
-    Eigen::MatrixXd matrix_to_invert = xT * W * x;
-    Eigen::FullPivHouseholderQR<Eigen::MatrixXd> qr(matrix_to_invert.rows(), matrix_to_invert.cols());
-    qr.compute(matrix_to_invert);
-    beta += qr.solve(xT * (y - p));
+    // Eigen::DiagonalMatrix<double, Eigen::Dynamic> W_inv(variance.pow(-1));
+    // Eigen::MatrixXd matrix_to_invert = W * x;
+    // Rcpp::Rcout << "Matrix inversion dims: " << (W * x).rows() << "\t" << (W * x).cols() << "\n";
+    // Eigen::FullPivHouseholderQR<Eigen::MatrixXd> qr(matrix_to_invert.rows(), matrix_to_invert.cols());
+    // qr.compute(matrix_to_invert);
+    // Eigen::VectorXd z = W *x*beta + W_inv * (y - p);
+    // beta = qr.solve(z);
     counter ++;
     
     diff = (beta - beta_old).norm();
@@ -95,17 +132,17 @@ Eigen::MatrixXd logistic_regression(const Eigen::MatrixXd & x, const Eigen::Vect
     Eigen::VectorXd negativeExamples = (W * one_minus_y).array() * (1-p.array()).log().unaryExpr([](double v) { return std::isfinite(v)? v : 0.0; });;
     
     
-    Rcpp::Rcout << (1-p.array()).minCoeff() << "\t" << (1-p.array()).maxCoeff() << "\n";
-    Rcpp::Rcout << positiveExamples.sum() << "\t" << negativeExamples.sum() << "\n";
+    // Rcpp::Rcout << (1-p.array()).minCoeff() << "\t" << (1-p.array()).maxCoeff() << "\n";
+    // Rcpp::Rcout << positiveExamples.sum() << "\t" << negativeExamples.sum() << "\n";
     dev_new = 2*(positiveExamples.sum() + negativeExamples.sum());
     
     diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
     dev_old = dev_new;
     Rcpp::Rcout << diff << "\t" << counter << "\n";
-    
-    if(diff < 1e-3){
-      Rcpp::Rcout <<positiveExamples << "\n" << negativeExamples << "\n";
-    }
+    // 
+    // if(diff < 1e-3){
+    //   // Rcpp::Rcout <<positiveExamples << "\n" << negativeExamples << "\n";
+    // }
 
     
   }
