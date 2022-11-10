@@ -10,5 +10,10 @@ License: What license is it under?
 Imports: Rcpp (>= 1.0.8.3), RcppEigen
 LinkingTo: Rcpp, RcppEigen
 Suggests: 
+    knitr,
+    rmarkdown,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+VignetteBuilder: knitr
+RoxygenNote: 7.2.1
+Encoding: UTF-8

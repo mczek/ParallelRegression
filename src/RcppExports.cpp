@@ -55,14 +55,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // logistic_regression
-Eigen::MatrixXd logistic_regression(const Eigen::MatrixXd& x, const Eigen::VectorXd& y);
-RcppExport SEXP _ParallelRegression_logistic_regression(SEXP xSEXP, SEXP ySEXP) {
+Eigen::VectorXd logistic_regression(const Eigen::MatrixXd& x, const Eigen::VectorXd& y, int cores);
+RcppExport SEXP _ParallelRegression_logistic_regression(SEXP xSEXP, SEXP ySEXP, SEXP coresSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type x(xSEXP);
     Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
-    rcpp_result_gen = Rcpp::wrap(logistic_regression(x, y));
+    Rcpp::traits::input_parameter< int >::type cores(coresSEXP);
+    rcpp_result_gen = Rcpp::wrap(logistic_regression(x, y, cores));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -72,7 +73,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_ParallelRegression_rcppeigen_outerproduct", (DL_FUNC) &_ParallelRegression_rcppeigen_outerproduct, 1},
     {"_ParallelRegression_rcppeigen_innerproduct", (DL_FUNC) &_ParallelRegression_rcppeigen_innerproduct, 1},
     {"_ParallelRegression_rcppeigen_bothproducts", (DL_FUNC) &_ParallelRegression_rcppeigen_bothproducts, 1},
-    {"_ParallelRegression_logistic_regression", (DL_FUNC) &_ParallelRegression_logistic_regression, 2},
+    {"_ParallelRegression_logistic_regression", (DL_FUNC) &_ParallelRegression_logistic_regression, 3},
     {NULL, NULL, 0}
 };
 
