@@ -53,7 +53,7 @@ nSims <- 1
 for(n in c(10000, 100000)){
   for(i in 1:nSims){
     for(k in 1:2){
-      results <- append(results, list(RunExperiment(n, 200, 30, logistic_regression, k)))
+      results <- append(results, list(RunExperiment(n, 200, 30, ParLR, k)))
     }
   }
 }
