@@ -58,7 +58,7 @@ Eigen::VectorXd LogisticRegressionTask(const Eigen::MatrixXd & x, const Eigen::V
     Eigen::DiagonalMatrix<double, Eigen::Dynamic> W(variance);
     counter ++;
     
-    diff = (beta - beta_old).norm();
+    // diff = (beta - beta_old).norm();
     beta_old = beta;
     
     // compute stopping criteria
@@ -70,6 +70,10 @@ Eigen::VectorXd LogisticRegressionTask(const Eigen::MatrixXd & x, const Eigen::V
     
     diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
     dev_old = dev_new;
+    
+    if (diff < 1e-8) {
+      break;
+    }
     
   }
   return beta;
@@ -93,8 +97,10 @@ void PartitionedRegressionTask(const Eigen::MatrixXd & x, const Eigen::VectorXd 
 }
 
 
-// test function
-//
+//' @title Parallel Logistic Regresssion
+//' @param x the X matrix in logistic regression
+//' @param y the response matrix in logistic regression
+//' @param ncores the number of cores to use
 //' @export
 // [[Rcpp::export]]
 Eigen::VectorXd ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1) {

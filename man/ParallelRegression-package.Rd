@@ -6,6 +6,6 @@
 \alias{ParallelRegression-package}
 \title{ParallelRegression: What the package does (short line)}
 \description{
-More about what it does (maybe more than one line)
+Perform logistic regression in parallel and provide functionality to compare approaches.
 }
 \keyword{internal}

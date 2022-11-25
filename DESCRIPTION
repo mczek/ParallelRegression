@@ -5,14 +5,15 @@ Version: 1.0
 Date: 2022-10-28
 Author: Who wrote it
 Maintainer: Who to complain to <yourfault@somewhere.net>
-Description: More about what it does (maybe more than one line)
-License: What license is it under?
-Imports: Rcpp (>= 1.0.8.3), RcppEigen
+Description: Perform logistic regression in parallel and provide functionality to compare approaches.
+License: MIT + file LICENSE
+Imports: Rcpp (>= 1.0.8.3)
 LinkingTo: 
     cpp11,
     Rcpp,
     RcppEigen
 Suggests: 
+    data.table,
     knitr,
     rmarkdown,
     testthat (>= 3.0.0)
