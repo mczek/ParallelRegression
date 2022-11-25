@@ -2,11 +2,8 @@
 // [[Rcpp::depends(RcppEigen)]]
 
 #include <RcppEigen.h>
-#include <cpp11.hpp>
 #include <thread>
-using namespace cpp11;
 
-[[cpp11::register]]
 
 Eigen::VectorXd LogisticFunction(const Eigen::MatrixXd x, const Eigen::VectorXd beta){
   return (1 + (-x*beta).array().exp()).pow(-1);

@@ -3,4 +3,3 @@
 export(ParLR)
 importFrom(Rcpp,evalCpp)
 useDynLib(ParallelRegression, .registration = TRUE)
-useDynLib(ParallelRegression, .registration=TRUE)
