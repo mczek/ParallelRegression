@@ -30,7 +30,7 @@ RunExperiment <- function(n, p, s, test_fn, k){
   y <- rbinom(n, 1, prob)
   
   glm_time <- system.time(glm_coeff <- glm(y ~ X - 1, family="binomial")$coeff)
-  new_alg_time <- system.time(new_alg_coeff <- test_fn(X, y, k))
+  new_alg_time <- system.time(new_alg_coeff <- test_fn(X, y, k)$beta)
   
   diff_norm <- 0
   if (sum((glm_coeff-new_alg_coeff) > 0) > 0){
