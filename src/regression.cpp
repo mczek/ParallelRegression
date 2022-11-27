@@ -10,10 +10,15 @@ public:
   Eigen::VectorXd y_;
   int ncores_;
   std::vector<int> niter_;
+  std::vector<Eigen::VectorXd> all_betas_;
   
   // constructor
   Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores) : x_(x), y_(y), ncores_(ncores) {
     niter_ = std::vector<int>(ncores);
+    all_betas_ = std::vector<Eigen::VectorXd>(ncores*25);
+    for(int i=0; i<ncores*25; i++){
+      all_betas_[i] = Eigen::VectorXd::Zero(x.cols(), 1).cast<double>();
+    }
   }
 
   // link function for logistic regression
@@ -62,6 +67,9 @@ public:
     double dev_new = 0;
     double dev = 0;
     while(counter < 25){
+      all_betas_[id*25 + counter] = beta;
+      
+      
       Eigen::VectorXd p = LogisticFunction(x, beta);
       Eigen::VectorXd variance = p.array() * (1 - p.array());
       Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
@@ -81,6 +89,8 @@ public:
       diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
       dev_old = dev_new;
       beta_old = beta;
+      
+
       
       if (diff < 1e-8) {
         break;
@@ -155,8 +165,14 @@ Rcpp::List ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncore
   Eigen::VectorXd beta = s.SolveLR();
   SEXP wrap_beta = Rcpp::wrap(beta);
   
+  Eigen::MatrixXd all_beta(ncores*25, x.cols());
+  for(int i=0; i<ncores*25; i++){
+    all_beta.row(i) = s.all_betas_[i].transpose();
+  }
+  
   // Rcpp::Named("niter") = Rcpp::IntegerVector(*s.niter_)
   return Rcpp::List::create(Rcpp::Named("beta") = Rcpp::NumericVector(wrap_beta),
-                            Rcpp::Named("niter") = Rcpp::wrap(s.niter_));
+                            Rcpp::Named("niter") = Rcpp::wrap(s.niter_),
+                            Rcpp::Named("all_betas") = Rcpp::wrap(all_beta));
 
 }
