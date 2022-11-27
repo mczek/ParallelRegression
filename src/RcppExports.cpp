@@ -12,7 +12,7 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // ParLR
-Eigen::VectorXd ParLR(const Eigen::MatrixXd& x, const Eigen::VectorXd& y, int ncores);
+Rcpp::List ParLR(const Eigen::MatrixXd& x, const Eigen::VectorXd& y, int ncores);
 RcppExport SEXP _ParallelRegression_ParLR(SEXP xSEXP, SEXP ySEXP, SEXP ncoresSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;

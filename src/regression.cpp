@@ -9,9 +9,12 @@ public:
   Eigen::MatrixXd x_;
   Eigen::VectorXd y_;
   int ncores_;
+  std::vector<int> niter_;
   
   // constructor
-  Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores) : x_(x), y_(y), ncores_(ncores) {}
+  Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores) : x_(x), y_(y), ncores_(ncores) {
+    niter_ = std::vector<int>(ncores);
+  }
 
   // link function for logistic regression
   Eigen::VectorXd LogisticFunction(const Eigen::MatrixXd x, const Eigen::VectorXd beta){
@@ -46,7 +49,7 @@ public:
   }
       
   // solve a logistic regression problem
-  Eigen::VectorXd LogisticRegressionTask(const Eigen::MatrixXd & x, const Eigen::VectorXd & y) {
+  Eigen::VectorXd LogisticRegressionTask(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int id) {
     Eigen::VectorXd beta = Eigen::VectorXd::Ones(x.cols(), 1).cast<double>();
     Eigen::VectorXd beta_old = beta;
 
@@ -59,7 +62,6 @@ public:
     double dev_new = 0;
     double dev = 0;
     while(counter < 25){
-      // Rcpp::Rcout << "beta: \n" << beta << "\n";
       Eigen::VectorXd p = LogisticFunction(x, beta);
       Eigen::VectorXd variance = p.array() * (1 - p.array());
       Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
@@ -68,23 +70,24 @@ public:
       Eigen::DiagonalMatrix<double, Eigen::Dynamic> W(variance);
       counter ++;
       
-      beta_old = beta;
+
       
-      // compute stopping criteria
+      // compute stopping criteria, matches glm Fortran
       Eigen::VectorXd one_minus_y = 1 - y.array();
       Eigen::VectorXd positiveExamples = (W * y).array() * p.array().log().unaryExpr([](double v) { return std::isfinite(v)? v : 0.0; });;
       Eigen::VectorXd negativeExamples = (W * one_minus_y).array() * (1-p.array()).log().unaryExpr([](double v) { return std::isfinite(v)? v : 0.0; });;
       
       dev_new = 2*(positiveExamples.sum() + negativeExamples.sum());
-      
       diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
       dev_old = dev_new;
+      beta_old = beta;
       
       if (diff < 1e-8) {
         break;
       }
       
     }
+    niter_[id] = counter;
     return beta;
   }
   
@@ -102,7 +105,7 @@ public:
       rownew++;
     }
     
-    Eigen::VectorXd beta = LogisticRegressionTask(x_partition, y_partition);
+    Eigen::VectorXd beta = LogisticRegressionTask(x_partition, y_partition, id);
     beta_array[id] = beta;
   }
   
@@ -147,8 +150,13 @@ public:
 //' @param ncores the number of cores to use
 //' @export
 // [[Rcpp::export]]
-Eigen::VectorXd ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1) {
+Rcpp::List ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1) {
   Solver s = Solver(x, y, ncores);
-  return s.SolveLR();
+  Eigen::VectorXd beta = s.SolveLR();
+  SEXP wrap_beta = Rcpp::wrap(beta);
+  
+  // Rcpp::Named("niter") = Rcpp::IntegerVector(*s.niter_)
+  return Rcpp::List::create(Rcpp::Named("beta") = Rcpp::NumericVector(wrap_beta),
+                            Rcpp::Named("niter") = Rcpp::wrap(s.niter_));
 
 }
