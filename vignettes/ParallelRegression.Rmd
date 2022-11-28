@@ -51,7 +51,7 @@ ggplot(df, aes(x = b1,
                y = b2,
                group = core,
                color= core)) +
-  geom_line() +
+  geom_path() +
   geom_point() +
   scale_color_colorblind()
 ```
