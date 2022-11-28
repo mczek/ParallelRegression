@@ -59,49 +59,49 @@ ggplot(df, aes(x = b1,
 
 
 ```{r}
-RunExperiment <- function(n, p, s, test_fn, k){
-  X <- matrix(rnorm(n*p, mean = 0, sd = 0.05), ncol=p)
-  vars_to_use <- sample(1:p, s)
-  beta <- matrix(10*runif(p), ncol=1)
-  beta[-vars_to_use] <- 0
-  
-  prob <- 1 / (1 + exp(-X %*% beta))
-  y <- rbinom(n, 1, prob)
-  
-  glm_time <- system.time(glm_coeff <- glm(y ~ X - 1, family="binomial")$coeff)
-  new_alg_time <- system.time(new_alg_coeff <- test_fn(X, y, k)$beta)
-  
-  diff_norm <- 0
-  if (sum((glm_coeff-new_alg_coeff) > 0) > 0){
-    diff_norm <- sqrt(t(glm_coeff-new_alg_coeff) %*% (glm_coeff-new_alg_coeff))
-  }
-  
-  
-  results <- data.table("n" = n,
-                        "p" = p,
-                        "s" = s,
-                        "k" = k,
-                        "DiffNorm" = diff_norm,
-                        "AlgTime" = new_alg_time[3],
-                        "RefTime" = glm_time[3],
-                        "TimeDiff2Ref" = new_alg_time[3] - glm_time[3])
-  return(results)
-}
-
-results <- list()
-nSims <- 1
-for(n in c(10000, 100000)){
-  for(i in 1:nSims){
-    for(k in 1:2){
-      print(n, k)
-      results <- append(results, list(RunExperiment(n, 200, 30, ParLR, k)))
-    }
-  }
-}
-
-final_results <- rbindlist(results)
-final_results[, .(DiffNormAvg = mean(DiffNorm.V1), 
-                  AlgTimeAvg = mean(AlgTime),
-                  TimeDiff2RefAvg = mean(TimeDiff2Ref)),
-              .(n, p, s, k)]
+# RunExperiment <- function(n, p, s, test_fn, k){
+#   X <- matrix(rnorm(n*p, mean = 0, sd = 0.05), ncol=p)
+#   vars_to_use <- sample(1:p, s)
+#   beta <- matrix(10*runif(p), ncol=1)
+#   beta[-vars_to_use] <- 0
+#   
+#   prob <- 1 / (1 + exp(-X %*% beta))
+#   y <- rbinom(n, 1, prob)
+#   
+#   glm_time <- system.time(glm_coeff <- glm(y ~ X - 1, family="binomial")$coeff)
+#   new_alg_time <- system.time(new_alg_coeff <- test_fn(X, y, k)$beta)
+#   
+#   diff_norm <- 0
+#   if (sum((glm_coeff-new_alg_coeff) > 0) > 0){
+#     diff_norm <- sqrt(t(glm_coeff-new_alg_coeff) %*% (glm_coeff-new_alg_coeff))
+#   }
+#   
+#   
+#   results <- data.table("n" = n,
+#                         "p" = p,
+#                         "s" = s,
+#                         "k" = k,
+#                         "DiffNorm" = diff_norm,
+#                         "AlgTime" = new_alg_time[3],
+#                         "RefTime" = glm_time[3],
+#                         "TimeDiff2Ref" = new_alg_time[3] - glm_time[3])
+#   return(results)
+# }
+# 
+# results <- list()
+# nSims <- 1
+# for(n in c(10000, 100000)){
+#   for(i in 1:nSims){
+#     for(k in 1:2){
+#       print(n, k)
+#       results <- append(results, list(RunExperiment(n, 200, 30, ParLR, k)))
+#     }
+#   }
+# }
+# 
+# final_results <- rbindlist(results)
+# final_results[, .(DiffNormAvg = mean(DiffNorm.V1), 
+#                   AlgTimeAvg = mean(AlgTime),
+#                   TimeDiff2RefAvg = mean(TimeDiff2Ref)),
+#               .(n, p, s, k)]
 ```
