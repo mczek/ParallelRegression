@@ -11,14 +11,24 @@ public:
   int ncores_;
   std::vector<int> niter_;
   std::vector<Eigen::VectorXd> all_betas_;
+  std::vector<Eigen::VectorXd> current_betas_;
   
   // constructor
   Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores) : x_(x), y_(y), ncores_(ncores) {
     niter_ = std::vector<int>(ncores);
+    
+    // track all values to show convergence
     all_betas_ = std::vector<Eigen::VectorXd>(ncores*25);
     for(int i=0; i<ncores*25; i++){
       all_betas_[i] = Eigen::VectorXd::Zero(x.cols(), 1).cast<double>();
     }
+    
+    // track current beta values for communication
+    current_betas_ = std::vector<Eigen::VectorXd>(ncores);
+    for(int i=0; i<ncores; i++){
+      current_betas_[i] = Eigen::VectorXd::Zero(x.cols(), 1).cast<double>();
+    }
+    
   }
 
   // link function for logistic regression
@@ -102,7 +112,7 @@ public:
   }
   
   // solve logistic regression on a partition of whole data
-  void PartitionedRegressionTask(int id, int nrows, Eigen::VectorXd beta_array[]){
+  void PartitionedRegressionTask(int id, int nrows){
     Eigen::MatrixXd x_partition(nrows, x_.cols());
     Eigen::VectorXd y_partition(nrows);
     
@@ -116,22 +126,21 @@ public:
     }
     
     Eigen::VectorXd beta = LogisticRegressionTask(x_partition, y_partition, id);
-    beta_array[id] = beta;
+    current_betas_[id] = beta;
   }
   
   Eigen::VectorXd SolveLR(){
-    Eigen::VectorXd beta_array[ncores_];
     int nrows_per_task = (int)x_.rows() / ncores_ + 1; 
     
     std::thread workers[ncores_];
     if (ncores_ > 1){
       for(int i=1; i<ncores_; i++){
-        workers[i] = std::thread([&] {Solver::PartitionedRegressionTask(i, nrows_per_task, beta_array);});
-        PartitionedRegressionTask(0, nrows_per_task, beta_array);
+        workers[i] = std::thread([&] {Solver::PartitionedRegressionTask(i, nrows_per_task);});
+        PartitionedRegressionTask(0, nrows_per_task);
         workers[i].join();
       }
     } else {
-      PartitionedRegressionTask(0, nrows_per_task, beta_array);
+      PartitionedRegressionTask(0, nrows_per_task);
     }
     
     
@@ -139,7 +148,7 @@ public:
     // simple average for now 
     Eigen::VectorXd beta_agg = Eigen::VectorXd::Zero(x_.cols(), 1).cast<double>();
     for(int i=0; i<ncores_; i++){
-      beta_agg = beta_agg + beta_array[i];
+      beta_agg = beta_agg + current_betas_[i];
     }
     
     return beta_agg.array() / ncores_;
