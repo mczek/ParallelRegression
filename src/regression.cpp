@@ -6,6 +6,8 @@
 
 class Solver{
 public:
+  
+  // declare variables shared across threads
   Eigen::MatrixXd x_;
   Eigen::VectorXd y_;
   int ncores_;
@@ -86,10 +88,8 @@ public:
       Eigen::VectorXd Z = x * beta + modified_response;
       beta = WeightedLS(x, Z, variance);
       Eigen::DiagonalMatrix<double, Eigen::Dynamic> W(variance);
-      counter ++;
-      
+  
 
-      
       // compute stopping criteria, matches glm Fortran
       Eigen::VectorXd one_minus_y = 1 - y.array();
       Eigen::VectorXd positiveExamples = (W * y).array() * p.array().log().unaryExpr([](double v) { return std::isfinite(v)? v : 0.0; });;
@@ -100,12 +100,10 @@ public:
       dev_old = dev_new;
       beta_old = beta;
       
-
-      
       if (diff < 1e-8) {
         break;
       }
-      
+      counter ++;
     }
     niter_[id] = counter;
     return beta;
@@ -113,6 +111,8 @@ public:
   
   // solve logistic regression on a partition of whole data
   void PartitionedRegressionTask(int id, int nrows){
+    // Rcpp::Rcout << "\nstarting task "<< id <<"\n";
+    
     Eigen::MatrixXd x_partition(nrows, x_.cols());
     Eigen::VectorXd y_partition(nrows);
     
@@ -126,18 +126,25 @@ public:
     }
     
     Eigen::VectorXd beta = LogisticRegressionTask(x_partition, y_partition, id);
+    // Rcpp::Rcout << "\n" << id << "\t" << beta <<"\n";
     current_betas_[id] = beta;
   }
   
   Eigen::VectorXd SolveLR(){
     int nrows_per_task = (int)x_.rows() / ncores_ + 1; 
     
-    std::thread workers[ncores_];
+    std::thread workers[ncores_-1];
     if (ncores_ > 1){
-      for(int i=1; i<ncores_; i++){
+      for(int i=0; i<ncores_-1; i++){
         workers[i] = std::thread([&] {Solver::PartitionedRegressionTask(i, nrows_per_task);});
-        PartitionedRegressionTask(0, nrows_per_task);
+      }
+      // Rcpp::Rcout << "\n all tasks started \n";
+      PartitionedRegressionTask(0, nrows_per_task);
+      for(int i=0; i<ncores_-1; i++){
+        // Rcpp::Rcout << "\n about to join worker " << i << "\n";
         workers[i].join();
+        // Rcpp::Rcout << "\n worker " << i << " joined \n";
+        
       }
     } else {
       PartitionedRegressionTask(0, nrows_per_task);
