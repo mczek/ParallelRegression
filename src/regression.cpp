@@ -10,7 +10,6 @@
 
 class Solver{
 public:
-
   
   // declare variables shared across threads
   const Eigen::MatrixXd x_;
@@ -25,7 +24,6 @@ public:
   std::atomic<int> task_count_;   
   // constructor
   Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores) : x_(x), y_(y), ncores_(ncores) {
-    
     // keeps track of how many iterations each core
     niter_ = std::vector<int>(ncores, 0);
     
@@ -76,16 +74,13 @@ public:
     return x_new.householderQr().solve(y_new);
   }
   
-  
   // solve a logistic regression problem
   Eigen::VectorXd LogisticRegressionTask(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int id) {
     std::string debug = "Hi! I'm thread " + std::to_string(id) + " and I'm getting started\n";
     Rcpp::Rcout << debug;
     Eigen::VectorXd beta = Eigen::VectorXd::Ones(x.cols(), 1).cast<double>();
-    int n = (int) x.rows();
     
-    // save X^T
-    Eigen::MatrixXd xT = x.transpose();
+    int n = (int) x.rows();
     
     double diff = 1;
     int counter = 0;
@@ -98,20 +93,19 @@ public:
     
     
     while(counter < 25){
-
-      // debug = std::to_string(id) + "\t" + std::to_string(task_count_) + "\t" + std::to_string(task_count_ / ncores_) + "\t" + std::to_string(counter) + "\n"; 
+      
+      // debug = std::to_string(id) + "\t" + std::to_string(task_count_) + "\t" + std::to_string(task_count_ / ncores_) + "\t" + std::to_string(counter) + "\n";
       // Rcpp::Rcout << debug;
       
       // prevent spurious wake ups
       while(ncores_ > 1 && task_count_ / ncores_ != counter) {
-        // std::string x = "Thread " + std::to_string(id) + " waiting\n"; 
+        // std::string x = "Thread " + std::to_string(id) + " waiting\n";
         // Rcpp::Rcout << x;
         cv_.wait(lck);
-        // x = "Thread " + std::to_string(id) + " woken up\n"; 
+        // x = "Thread " + std::to_string(id) + " woken up\n";
         // Rcpp::Rcout << x;
       }
-      std::string debug = "I am thread " + std::to_string(id) + " on iteration " + std::to_string(counter) + "\n";
-      Rcpp::Rcout << debug;
+      
       if (diff > 1e-8){
         Eigen::VectorXd p = LogisticFunction(x, beta);
         Eigen::VectorXd variance = p.array() * (1 - p.array());
@@ -126,10 +120,10 @@ public:
           dev_new +=  (y[i]*std::log(p[i])) + ((1-y[i])*std::log(1-p[i])) ;
         }
         dev_new *=2;
-        // Rcpp::Rcout << dev_new << "\n";
+        Rcpp::Rcout << dev_new << "\n";
         diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
         dev_old = dev_new;
-
+        
         
         // Rcpp::Rcout << counter << "\n";
         all_betas_[id*25 + counter] = beta;
@@ -229,7 +223,7 @@ public:
 Rcpp::List ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1) {
   Solver s(x, y, ncores);
   Eigen::VectorXd beta = s.SolveLR();
-
+  
   Eigen::MatrixXd all_beta(ncores*25, x.cols());
   for(int i=0; i<ncores*25; i++){
     all_beta.row(i) = s.all_betas_[i].transpose();

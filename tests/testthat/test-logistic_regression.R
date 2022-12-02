@@ -8,13 +8,13 @@ test_that("serial implementation", {
   par_model <- ParallelRegression::ParLR(x, y)
   beta_hat <- par_model$beta
   niter <- par_model$niter
-
+  
   logit <- glm(y ~ x[,1] + x[,2] - 1, family = "binomial")
   best <- as.vector(logit$coefficients)
   
   
   expect_equal(as.vector(beta_hat), best, tolerance=0.05)
-  expect_equal(par_model$niter, 6, tolerance=0.05)
+  expect_equal(par_model$niter, 7, tolerance=0.05)
 })
 
 
@@ -33,7 +33,7 @@ test_that("parallel with 2 cores", {
   best <- as.vector(logit$coefficients)
 
   expect_equal(as.vector(beta_hat), best, tolerance=0.05)
-  expect_equal(par_model$niter, c(6, 6), tolerance=0.05)
+  expect_equal(par_model$niter, c(7, 7), tolerance=0.05)
 })
 
 test_that("timing", {
@@ -45,9 +45,6 @@ test_that("timing", {
 
   new_time2 <- system.time(beta_hat <- ParallelRegression::ParLR(x, y, 2))
   new_time1 <- system.time(beta_hat <- ParallelRegression::ParLR(x, y, 1))
-  
-  print(new_time1)
-  print(new_time2)
 
   testthat::expect_lt(new_time2[3], new_time1[3])
 })
