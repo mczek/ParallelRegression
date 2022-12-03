@@ -7,6 +7,7 @@
 #include <string>
 #include <condition_variable> 
 #include <atomic> 
+#include "Barrier.cpp"
 
 class Solver{
 public:
@@ -19,9 +20,7 @@ public:
   std::vector<Eigen::VectorXd> all_betas_;
   std::vector<Eigen::VectorXd> current_betas_;
   
-  std::mutex mtx_;
-  std::condition_variable cv_;
-  std::atomic<int> task_count_;   
+  Barrier barrier_lock;
   // constructor
   Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores) : x_(x), y_(y), ncores_(ncores) {
     // keeps track of how many iterations each core
@@ -38,8 +37,7 @@ public:
       current_betas_.push_back(Eigen::VectorXd::Zero(x.cols(), 1).cast<double>());
     }
     
-    task_count_ = 0;
-    
+    new (&barrier_lock) Barrier(ncores_);
   }
   
   // link function for logistic regression
@@ -86,10 +84,7 @@ public:
     int counter = 0;
     double dev_old = 1000;
     double dev_new = 0;
-    
-    // use to sync threads
-    std::unique_lock<std::mutex> lck (mtx_);
-    
+  
     
     
     while(counter < 25){
@@ -98,12 +93,8 @@ public:
       // Rcpp::Rcout << debug;
       
       // prevent spurious wake ups
-      while(ncores_ > 1 && task_count_ / ncores_ != counter) {
-        // std::string x = "Thread " + std::to_string(id) + " waiting\n";
-        // Rcpp::Rcout << x;
-        cv_.wait(lck);
-        // x = "Thread " + std::to_string(id) + " woken up\n";
-        // Rcpp::Rcout << x;
+      if(ncores_ > 1){
+        barrier_lock.wait();
       }
       
       if (diff > 1e-8){
@@ -134,16 +125,6 @@ public:
         }
       }
       
-      if(ncores_ > 1){
-        // debug = "I am thread " + std::to_string(id) + " acquiring lock \n";
-        // Rcpp::Rcout << debug;
-        // lck.lock();
-        // debug = "I am thread " + std::to_string(id) + ". lock acquired \n";
-        // Rcpp::Rcout << debug;
-        task_count_ ++;
-        // lck.unlock();
-        cv_.notify_all();
-      }
       counter ++;
       
     }
