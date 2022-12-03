@@ -51,6 +51,16 @@ public:
     return beta / ncores_;
   }
   
+  Eigen::VectorXd AverageBetaCurrent(){
+    // Rcpp::Rcout << "about to allocate beta";
+    Eigen::VectorXd beta = current_betas_[0];
+    // Rcpp::Rcout << "beta allocated";
+    for(int id=1; id<ncores_; id++){
+      beta += current_betas_[id];
+    }
+    return beta / ncores_;
+  }
+  
   
   // link function for logistic regression
   Eigen::VectorXd LogisticFunction(const Eigen::MatrixXd x, const Eigen::VectorXd beta){
@@ -100,15 +110,17 @@ public:
     
     
     while(counter < 25){
-      
-      // debug = std::to_string(id) + "\t" + std::to_string(task_count_) + "\t" + std::to_string(task_count_ / ncores_) + "\t" + std::to_string(counter) + "\n";
-      // Rcpp::Rcout << debug;
-      
+    
       // prevent spurious wake ups
-      if(comm_ == 1 && ncores_ > 1){
+      if(comm_ != 0 && ncores_ > 1){
         barrier_lock.wait();
         if(counter > 0 && counter <= 3 ){
-          beta = AverageBetaIter(counter-1);
+          if(comm_ == 1){
+            beta = AverageBetaIter(counter-1);
+          }
+          if(comm_ == 2){
+            beta = AverageBetaCurrent();
+          }
         }
       }
       
@@ -118,7 +130,8 @@ public:
         Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
         Eigen::VectorXd Z = x * beta + modified_response;
         beta = WeightedLS(x, Z, variance);
-
+        current_betas_[id] = beta;
+        
         // compute stopping criteria, matches glm
         dev_new = 0;
         for(int i=0; i<n; i++) {
