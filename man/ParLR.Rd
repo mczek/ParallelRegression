@@ -12,6 +12,8 @@ ParLR(x, y, ncores = 1L, comm = 0L)
 \item{y}{the response matrix in logistic regression}
 
 \item{ncores}{the number of cores to use}
+
+\item{comm}{indicates communication method. More details to follow...}
 }
 \description{
 Parallel Logistic Regresssion

@@ -42,9 +42,9 @@ public:
   }
   
   Eigen::VectorXd AverageBetaIter(int i){
-    Rcpp::Rcout << "about to allocate beta";
+    // Rcpp::Rcout << "about to allocate beta";
     Eigen::VectorXd beta = all_betas_[i];
-    Rcpp::Rcout << "beta allocated";
+    // Rcpp::Rcout << "beta allocated";
     for(int id=1; id<ncores_; id++){
       beta += all_betas_[id*25 + i];
     }
@@ -86,8 +86,8 @@ public:
   
   // solve a logistic regression problem
   Eigen::VectorXd LogisticRegressionTask(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int id) {
-    std::string debug = "Hi! I'm thread " + std::to_string(id) + " and I'm getting started\n";
-    Rcpp::Rcout << debug;
+    // std::string debug = "Hi! I'm thread " + std::to_string(id) + " and I'm getting started\n";
+    // Rcpp::Rcout << debug;
     Eigen::VectorXd beta = Eigen::VectorXd::Ones(x.cols(), 1).cast<double>();
     
     int n = (int) x.rows();
@@ -118,15 +118,16 @@ public:
         Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
         Eigen::VectorXd Z = x * beta + modified_response;
         beta = WeightedLS(x, Z, variance);
-        Eigen::DiagonalMatrix<double, Eigen::Dynamic> W(variance);
-        
+
         // compute stopping criteria, matches glm
         dev_new = 0;
         for(int i=0; i<n; i++) {
-          dev_new +=  (y[i]*std::log(p[i])) + ((1-y[i])*std::log(1-p[i])) ;
+          if(p[i] != y[i]){
+            dev_new +=  (y[i]*std::log(p[i])) + ((1-y[i])*std::log(1-p[i])) ;
+          }
         }
         dev_new *=2;
-        Rcpp::Rcout << dev_new << "\n";
+        // Rcpp::Rcout << dev_new << "\n";
         diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
         dev_old = dev_new;
         
@@ -175,7 +176,7 @@ public:
     std::thread workers[ncores_-1];
     if (ncores_ > 1){
       for(int i=0; i<ncores_-1; i++){
-        Rcpp::Rcout << std::to_string(i) + "\t";
+        // Rcpp::Rcout << std::to_string(i) + "\t";
         workers[i] = std::thread(&Solver::PartitionedRegressionTask, this, i, nrows_per_task);
       }
       // Rcpp::Rcout << "\n all tasks started \n";
