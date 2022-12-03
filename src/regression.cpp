@@ -214,6 +214,7 @@ public:
 //' @param x the X matrix in logistic regression
 //' @param y the response matrix in logistic regression
 //' @param ncores the number of cores to use
+//' @param comm indicates communication method. More details to follow...
 //' @export
 // [[Rcpp::export]]
 Rcpp::List ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1, int comm=0) {
