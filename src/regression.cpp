@@ -16,13 +16,14 @@ public:
   const Eigen::MatrixXd x_;
   const Eigen::VectorXd y_;
   int ncores_;
+  int comm_;
   std::vector<int> niter_;
   std::vector<Eigen::VectorXd> all_betas_;
   std::vector<Eigen::VectorXd> current_betas_;
   
   Barrier barrier_lock;
   // constructor
-  Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores) : x_(x), y_(y), ncores_(ncores) {
+  Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores, int comm) : x_(x), y_(y), ncores_(ncores), comm_(comm) {
     // keeps track of how many iterations each core
     niter_ = std::vector<int>(ncores, 0);
     
@@ -39,6 +40,17 @@ public:
     
     new (&barrier_lock) Barrier(ncores_);
   }
+  
+  Eigen::VectorXd AverageBetaIter(int i){
+    Rcpp::Rcout << "about to allocate beta";
+    Eigen::VectorXd beta = all_betas_[i];
+    Rcpp::Rcout << "beta allocated";
+    for(int id=1; id<ncores_; id++){
+      beta += all_betas_[id*25 + i];
+    }
+    return beta / ncores_;
+  }
+  
   
   // link function for logistic regression
   Eigen::VectorXd LogisticFunction(const Eigen::MatrixXd x, const Eigen::VectorXd beta){
@@ -93,8 +105,11 @@ public:
       // Rcpp::Rcout << debug;
       
       // prevent spurious wake ups
-      if(ncores_ > 1){
+      if(comm_ == 1 && ncores_ > 1){
         barrier_lock.wait();
+        if(counter > 0 && counter <= 3 ){
+          beta = AverageBetaIter(counter-1);
+        }
       }
       
       if (diff > 1e-8){
@@ -201,8 +216,8 @@ public:
 //' @param ncores the number of cores to use
 //' @export
 // [[Rcpp::export]]
-Rcpp::List ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1) {
-  Solver s(x, y, ncores);
+Rcpp::List ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1, int comm=0) {
+  Solver s(x, y, ncores, comm);
   Eigen::VectorXd beta = s.SolveLR();
   
   Eigen::MatrixXd all_beta(ncores*25, x.cols());
