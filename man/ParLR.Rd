@@ -4,7 +4,7 @@
 \alias{ParLR}
 \title{Parallel Logistic Regresssion}
 \usage{
-ParLR(x, y, ncores = 1L)
+ParLR(x, y, ncores = 1L, comm = 0L)
 }
 \arguments{
 \item{x}{the X matrix in logistic regression}
