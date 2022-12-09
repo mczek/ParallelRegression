@@ -22,86 +22,125 @@ library(ggthemes)
 ```
 
 ```{r}
-set.seed(1865)
-x <- matrix(rnorm(200), ncol=2)
-beta <- matrix(c(1, 2), ncol=1)
-p <- exp(x %*% beta) / (1 + exp(x %*% beta))
-y <- as.numeric(runif(100) < p)
-
-par_model <- ParallelRegression::ParLR(x, y, 2)
-df <- as.data.frame(par_model$all_beta)
-colnames(df) <- c("b1", "b2")
-df$iter <- rep(1:25, 2)
-df$core <- as.factor(rep(1:2, each=25))
-
-maxiter <- data.frame("core" = c(1,2),
-                      "max_iter" = par_model$niter)
-
-logit <- glm(y ~ x[,1] + x[,2] - 1, family = "binomial")
-other_df <- data.frame("b1" = c(logit$coefficients[1], par_model$beta[1]),
-                       "b2" = c(logit$coefficients[2], par_model$beta[2]),
-                       "iter" = c(0, 0),
-                       "core" = c("glm", "average"),
-                       "max_iter" = c(1,1))
-
-df <- merge(df, maxiter)
-df <- rbind(df, other_df)
-df <- df[df$iter <= df$max_iter, ]
-ggplot(df, aes(x = b1,
-               y = b2,
-               group = core,
-               color= core)) +
-  geom_path() +
-  geom_point() +
-  scale_color_colorblind()
+# set.seed(1865)
+# x <- matrix(rnorm(200), ncol=2)
+# beta <- matrix(c(1, 2), ncol=1)
+# p <- exp(x %*% beta) / (1 + exp(x %*% beta))
+# y <- as.numeric(runif(100) < p)
+# 
+# par_model <- ParallelRegression::ParLR(x, y, 2)
+# df <- as.data.frame(par_model$all_beta)
+# colnames(df) <- c("b1", "b2")
+# df$iter <- rep(1:25, 2)
+# df$core <- as.factor(rep(1:2, each=25))
+# 
+# maxiter <- data.frame("core" = c(1,2),
+#                       "max_iter" = par_model$niter)
+# 
+# logit <- glm(y ~ x[,1] + x[,2] - 1, family = "binomial")
+# other_df <- data.frame("b1" = c(logit$coefficients[1], par_model$beta[1]),
+#                        "b2" = c(logit$coefficients[2], par_model$beta[2]),
+#                        "iter" = c(0, 0),
+#                        "core" = c("glm", "average"),
+#                        "max_iter" = c(1,1))
+# 
+# df <- merge(df, maxiter)
+# df <- rbind(df, other_df)
+# df <- df[df$iter <= df$max_iter, ]
+# ggplot(df, aes(x = b1,
+#                y = b2,
+#                group = core,
+#                color= core)) +
+#   geom_path() +
+#   geom_point() +
+#   scale_color_colorblind()
 ```
 
 
 
 ```{r}
-# RunExperiment <- function(n, p, s, test_fn, k){
-#   X <- matrix(rnorm(n*p, mean = 0, sd = 0.05), ncol=p)
-#   vars_to_use <- sample(1:p, s)
-#   beta <- matrix(10*runif(p), ncol=1)
-#   beta[-vars_to_use] <- 0
-#   
-#   prob <- 1 / (1 + exp(-X %*% beta))
-#   y <- rbinom(n, 1, prob)
-#   
-#   glm_time <- system.time(glm_coeff <- glm(y ~ X - 1, family="binomial")$coeff)
-#   new_alg_time <- system.time(new_alg_coeff <- test_fn(X, y, k)$beta)
-#   
-#   diff_norm <- 0
-#   if (sum((glm_coeff-new_alg_coeff) > 0) > 0){
-#     diff_norm <- sqrt(t(glm_coeff-new_alg_coeff) %*% (glm_coeff-new_alg_coeff))
-#   }
-#   
-#   
-#   results <- data.table("n" = n,
-#                         "p" = p,
-#                         "s" = s,
-#                         "k" = k,
-#                         "DiffNorm" = diff_norm,
-#                         "AlgTime" = new_alg_time[3],
-#                         "RefTime" = glm_time[3],
-#                         "TimeDiff2Ref" = new_alg_time[3] - glm_time[3])
-#   return(results)
-# }
+RunExperiment <- function(n, p, s, k){
+  X <- matrix(rnorm(n*p, mean = 0, sd = 0.05), ncol=p)
+  vars_to_use <- sample(1:p, s)
+  beta <- matrix(10*runif(p), ncol=1)
+  beta[-vars_to_use] <- 0
+  
+  prob <- 1 / (1 + exp(-X %*% beta))
+  y <- rbinom(n, 1, prob)
+  
+  # reference calc
+  time_vec <- NULL
+  diff_vec <- NULL
+  iter_vec <- NULL
+  for(i in 1:3){
+    glm_time <- system.time(glm_obj <- glm(y ~ X - 1, family="binomial"))
+    glm_coeff <- glm_obj$coeff
+    time_vec <- c(time_vec, glm_time[3])
+    diff_vec <- c(diff_vec, norm(beta - glm_coeff, "2") / norm(beta, "2"))
+    iter_vec <- c(iter_vec, 0)
+  }
+  
+  comm_opts <- 0:2
+  
+  for(comm in comm_opts){
+    for(i in 1:3){
+      new_alg_time <- system.time(new_alg_obj <- ParLR(X, y, k, comm))
+      new_alg_coeff <- new_alg_obj$beta 
+      diff_vec <- c(diff_vec, norm(beta - new_alg_coeff, "2") / norm(beta, "2"))
+      time_vec <- c(time_vec, new_alg_time[3])
+      iter_vec <- c(iter_vec, max(new_alg_obj$niter))
+    }
+  }
+  
+  
+  
+  results <- data.table("n" = rep(n, 3*(1+length(comm_opts))),
+                        "p" = rep(p, 3*(1+length(comm_opts))),
+                        "s" = rep(s, 3*(1+length(comm_opts))),
+                        "k" = rep(k, 3*(1+length(comm_opts))),
+                        "comm" = rep(c("glm", comm_opts), each=3),
+                        "diff" = diff_vec,
+                        "time" = time_vec,
+                        "iter" = iter_vec)
+  return(results)
+}
+
+# RunExperiment(10000, 200, 30, 2)
+results <- list()
+for(n in seq(100000, 200000, by=50000))  {
+  for(cores in c(1, 2, 4)){
+    print(paste(n, cores))
+    results <- append(results, list(RunExperiment(n, 200, 30, cores)))
+  }
+}
 # 
-# results <- list()
-# nSims <- 1
-# for(n in c(10000, 100000)){
-#   for(i in 1:nSims){
-#     for(k in 1:2){
-#       print(n, k)
-#       results <- append(results, list(RunExperiment(n, 200, 30, ParLR, k)))
-#     }
-#   }
-# }
-# 
-# final_results <- rbindlist(results)
+final_results <- rbindlist(results)
+fwrite(final_results, "~/Documents/GitHub/ParallelRegression/results_random.csv")
 # final_results[, .(DiffNormAvg = mean(DiffNorm.V1), 
 #                   AlgTimeAvg = mean(AlgTime),
 #                   TimeDiff2RefAvg = mean(TimeDiff2Ref)),
 #               .(n, p, s, k)]
+
+plot_data <- final_results[comm != "glm", .(error = mean(diff),
+                                            time = median(time),
+                                            iter = max(iter)), by=.(n, p, s, k, comm)]
+ggplot(plot_data, aes(x = n,
+                      y = time,
+                      group = interaction(k, comm),
+                      color = as.character(k),
+                      linetype = comm)) +
+  geom_line() +
+  theme_clean() +
+  scale_color_colorblind()
+
+
+ggplot(plot_data, aes(x = n,
+                      y = iter,
+                      group = interaction(k, comm),
+                      color = as.factor(k),
+                      linetype = comm)) +
+  geom_line() +
+  theme_clean() +
+  scale_color_colorblind()
+
 ```

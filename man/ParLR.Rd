@@ -4,7 +4,7 @@
 \alias{ParLR}
 \title{Parallel Logistic Regresssion}
 \usage{
-ParLR(x, y, ncores = 1L)
+ParLR(x, y, ncores = 1L, comm = 0L)
 }
 \arguments{
 \item{x}{the X matrix in logistic regression}
@@ -12,6 +12,8 @@ ParLR(x, y, ncores = 1L)
 \item{y}{the response matrix in logistic regression}
 
 \item{ncores}{the number of cores to use}
+
+\item{comm}{indicates communication method. More details to follow...}
 }
 \description{
 Parallel Logistic Regresssion

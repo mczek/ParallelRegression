@@ -5,8 +5,9 @@
 #' @param x the X matrix in logistic regression
 #' @param y the response matrix in logistic regression
 #' @param ncores the number of cores to use
+#' @param comm indicates communication method. More details to follow...
 #' @export
-ParLR <- function(x, y, ncores = 1L) {
-    .Call(`_ParallelRegression_ParLR`, x, y, ncores)
+ParLR <- function(x, y, ncores = 1L, comm = 0L) {
+    .Call(`_ParallelRegression_ParLR`, x, y, ncores, comm)
 }
 
