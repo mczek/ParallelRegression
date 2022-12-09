@@ -21,6 +21,8 @@ public:
   std::vector<Eigen::VectorXd> all_betas_;
   std::vector<Eigen::VectorXd> current_betas_;
   
+  std::vector<int> current_iter_;
+  
   Barrier barrier_lock;
   // constructor
   Solver(Eigen::MatrixXd x, Eigen::VectorXd y, int ncores, int comm) : x_(x), y_(y), ncores_(ncores), comm_(comm) {
@@ -33,32 +35,40 @@ public:
     }
     
     // track current beta values for communication
-    current_betas_ = std::vector<Eigen::VectorXd>(ncores);
     for(int i=0; i<ncores; i++){
       current_betas_.push_back(Eigen::VectorXd::Zero(x.cols(), 1).cast<double>());
+      current_iter_.push_back(0);
     }
     
     new (&barrier_lock) Barrier(ncores_);
   }
   
-  Eigen::VectorXd AverageBetaIter(int i){
+  Eigen::VectorXd AverageBetaIter(const std::vector<Eigen::VectorXd> beta_vec, int i){
     // Rcpp::Rcout << "about to allocate beta";
-    Eigen::VectorXd beta = all_betas_[i];
+    Eigen::VectorXd beta = beta_vec[i];
     // Rcpp::Rcout << "beta allocated";
     for(int id=1; id<ncores_; id++){
-      beta += all_betas_[id*25 + i];
+      beta += beta_vec[id*25 + i];
     }
     return beta / ncores_;
   }
   
-  Eigen::VectorXd AverageBetaCurrent(){
+  Eigen::VectorXd AverageBetaCurrent(const std::vector<Eigen::VectorXd> beta_vec, const std::vector<int> iter_vec, int i){
     // Rcpp::Rcout << "about to allocate beta";
-    Eigen::VectorXd beta = current_betas_[0];
+    Eigen::VectorXd beta = Eigen::VectorXd::Zero(x_.cols(), 1).cast<double>();
+    int wgt = 0;
     // Rcpp::Rcout << "beta allocated";
-    for(int id=1; id<ncores_; id++){
-      beta += current_betas_[id];
+    for(int id=0; id<ncores_; id++){
+      int new_wgt = iter_vec[id];
+      if(new_wgt > 0){
+        wgt += new_wgt;
+        beta += beta_vec[id] * new_wgt;
+      }
     }
-    return beta / ncores_;
+    if (wgt == 0){
+      return beta_vec[i];
+    }
+    return beta / wgt;
   }
   
   
@@ -99,63 +109,56 @@ public:
     // std::string debug = "Hi! I'm thread " + std::to_string(id) + " and I'm getting started\n";
     // Rcpp::Rcout << debug;
     Eigen::VectorXd beta = Eigen::VectorXd::Ones(x.cols(), 1).cast<double>();
-    
+    // Eigen::VectorXd beta = Eigen::VectorXd::Random(x.cols(), 1).cast<double>();
     int n = (int) x.rows();
     
     double diff = 1;
     int counter = 0;
     double dev_old = 1000;
     double dev_new = 0;
-  
     
     
-    while(counter < 25){
     
+    while((counter < 25 && diff > 1e-8) || counter <=3){
+      Eigen::VectorXd p = LogisticFunction(x, beta);
+      Eigen::VectorXd variance = p.array() * (1 - p.array());
+      Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
+      Eigen::VectorXd Z = x * beta + modified_response;
+      beta = WeightedLS(x, Z, variance);
+      
+      // log state
+      current_betas_[id] = beta;
+      current_iter_[id] = counter;
+      all_betas_[id*25 + counter] = beta;
+      
+      // compute stopping criteria, matches glm
+      dev_new = 0;
+      for(int i=0; i<n; i++) {
+        if(p[i] != y[i]){
+          dev_new +=  (y[i]*std::log(p[i])) + ((1-y[i])*std::log(1-p[i])) ;
+        }
+      }
+      dev_new *=2;
+      // Rcpp::Rcout << dev_new << "\n";
+      diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
+      dev_old = dev_new;
+      
       // prevent spurious wake ups
-      if(comm_ != 0 && ncores_ > 1){
+      if(ncores_ > 1 && comm_ == 1 && counter <= 2){
+        // Rcpp::Rcout <<"waiting";
         barrier_lock.wait();
-        if(counter > 0 && counter <= 3 ){
-          if(comm_ == 1){
-            beta = AverageBetaIter(counter-1);
-          }
-          if(comm_ == 2){
-            beta = AverageBetaCurrent();
-          }
-        }
+        beta = AverageBetaIter(all_betas_, counter);
       }
       
-      if (diff > 1e-8){
-        Eigen::VectorXd p = LogisticFunction(x, beta);
-        Eigen::VectorXd variance = p.array() * (1 - p.array());
-        Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
-        Eigen::VectorXd Z = x * beta + modified_response;
-        beta = WeightedLS(x, Z, variance);
-        current_betas_[id] = beta;
-        
-        // compute stopping criteria, matches glm
-        dev_new = 0;
-        for(int i=0; i<n; i++) {
-          if(p[i] != y[i]){
-            dev_new +=  (y[i]*std::log(p[i])) + ((1-y[i])*std::log(1-p[i])) ;
-          }
-        }
-        dev_new *=2;
-        // Rcpp::Rcout << dev_new << "\n";
-        diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
-        dev_old = dev_new;
-        
-        
-        // Rcpp::Rcout << counter << "\n";
-        all_betas_[id*25 + counter] = beta;
-        
-      } else {
-        if(niter_[id] == 0){
-          niter_[id] = counter;
-        }
+      if(ncores_ > 1 && comm_ == 2 && counter <= 2){
+        beta = AverageBetaCurrent(current_betas_, current_iter_, id);
       }
-      
       counter ++;
-      
+    }
+    
+    
+    if(niter_[id] == 0){
+      niter_[id] = counter;
     }
     return beta;
   }
