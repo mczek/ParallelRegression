@@ -71,19 +71,24 @@ RunExperiment <- function(n, p, s, k){
   # reference calc
   time_vec <- NULL
   diff_vec <- NULL
+  iter_vec <- NULL
   for(i in 1:3){
-    glm_time <- system.time(glm_coeff <- glm(y ~ X - 1, family="binomial")$coeff)
-    time_vec <- c(time_vec, glm_time[1])
+    glm_time <- system.time(glm_obj <- glm(y ~ X - 1, family="binomial"))
+    glm_coeff <- glm_obj$coeff
+    time_vec <- c(time_vec, glm_time[3])
     diff_vec <- c(diff_vec, norm(beta - glm_coeff, "2") / norm(beta, "2"))
+    iter_vec <- c(iter_vec, 0)
   }
   
-  comm_opts <- 0:1
+  comm_opts <- 0:2
   
   for(comm in comm_opts){
     for(i in 1:3){
-      new_alg_time <- system.time(new_alg_coeff <- ParLR(X, y, k, comm)$beta)
+      new_alg_time <- system.time(new_alg_obj <- ParLR(X, y, k, comm))
+      new_alg_coeff <- new_alg_obj$beta 
       diff_vec <- c(diff_vec, norm(beta - new_alg_coeff, "2") / norm(beta, "2"))
-      time_vec <- c(time_vec, new_alg_time[1])
+      time_vec <- c(time_vec, new_alg_time[3])
+      iter_vec <- c(iter_vec, max(new_alg_obj$niter))
     }
   }
   
@@ -95,30 +100,45 @@ RunExperiment <- function(n, p, s, k){
                         "k" = rep(k, 3*(1+length(comm_opts))),
                         "comm" = rep(c("glm", comm_opts), each=3),
                         "diff" = diff_vec,
-                        "time" = time_vec)
+                        "time" = time_vec,
+                        "iter" = iter_vec)
   return(results)
 }
 
-RunExperiment(10000, 200, 30, 2)
+# RunExperiment(10000, 200, 30, 2)
 results <- list()
-nSims <- 1
-for(n in seq(10000, 20000, by=10000))  {
-  for(cores in 1:2){
+for(n in seq(100000, 200000, by=50000))  {
+  for(cores in c(1, 2, 4)){
+    print(paste(n, cores))
     results <- append(results, list(RunExperiment(n, 200, 30, cores)))
   }
 }
 # 
 final_results <- rbindlist(results)
+fwrite(final_results, "~/Documents/GitHub/ParallelRegression/results_random.csv")
 # final_results[, .(DiffNormAvg = mean(DiffNorm.V1), 
 #                   AlgTimeAvg = mean(AlgTime),
 #                   TimeDiff2RefAvg = mean(TimeDiff2Ref)),
 #               .(n, p, s, k)]
 
-plot_data <- final_results[, .(error = mean(diff), time = median(time)), by=.(n, p, s, k, comm)]
+plot_data <- final_results[comm != "glm", .(error = mean(diff),
+                                            time = median(time),
+                                            iter = max(iter)), by=.(n, p, s, k, comm)]
 ggplot(plot_data, aes(x = n,
                       y = time,
                       group = interaction(k, comm),
-                      color = interaction(k, comm))) +
+                      color = as.character(k),
+                      linetype = comm)) +
+  geom_line() +
+  theme_clean() +
+  scale_color_colorblind()
+
+
+ggplot(plot_data, aes(x = n,
+                      y = iter,
+                      group = interaction(k, comm),
+                      color = as.factor(k),
+                      linetype = comm)) +
   geom_line() +
   theme_clean() +
   scale_color_colorblind()
