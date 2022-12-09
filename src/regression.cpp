@@ -116,7 +116,6 @@ public:
     int counter = 0;
     double dev_old = 1000;
     double dev_new = 0;
-    double dev = 0;
     while((counter < 25 && diff > 1e-8) || counter <=3){
       
       // iteratively reweight 
@@ -144,6 +143,17 @@ public:
       diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
       dev_old = dev_new;
       
+      // prevent spurious wake ups
+      if(ncores_ > 1 && comm_ == 1 && counter <= 2){
+        // Rcpp::Rcout <<"waiting";
+        barrier_lock.wait();
+        beta = AverageBetaIter(all_betas_, counter);
+      }
+      
+      if(ncores_ > 1 && comm_ == 2 && counter <= 2){
+        beta = AverageBetaCurrent(current_betas_, current_iter_, id);
+      }
+      
       counter ++;
     }
     
@@ -157,11 +167,11 @@ public:
   // solve logistic regression on a partition of whole data
   void PartitionedRegressionTask(int id, int nrows){
     // get data for current task
-    Eigen::MatrixXd x_partition(nrows, x_.cols());
-    Eigen::VectorXd y_partition(nrows);
-    
     int start = id*nrows;
     int end = std::min((id+1)*nrows, (int)x_.rows());
+
+    Eigen::MatrixXd x_partition(end-start, x_.cols());
+    Eigen::VectorXd y_partition(end-start);
   
     
     int rownew = 0;
