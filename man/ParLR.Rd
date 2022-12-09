@@ -13,8 +13,25 @@ ParLR(x, y, ncores = 1L, comm = 0L)
 
 \item{ncores}{the number of cores to use}
 
-\item{comm}{indicates communication method. More details to follow...}
+\item{comm}{indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting}
+}
+\value{
+beta the estimate logistic regression beta
+
+niter how many iterations each subproblem took to converge
+
+all_betas a list of all betas observed at each iteration. Each 25 row section is another thread with increasing iterations.
 }
 \description{
 Parallel Logistic Regresssion
+}
+\examples{
+n<- 2000
+X <- matrix(rnorm(n*2, mean = 0, sd = 0.05), ncol=2)
+  beta <- c(1,2)
+  
+  prob <- 1 / (1 + exp(-X \%*\% beta))
+  y <- rbinom(n, 1, prob)
+  
+  ParallelRegression::ParLR(X, y, 2, 1)
 }

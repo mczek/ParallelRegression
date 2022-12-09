@@ -88,7 +88,7 @@ public:
     Eigen::MatrixXd wgt_x = W_sqrt * x;
     Eigen::VectorXd wgt_y = W_sqrt * y;
     
-    // https://stackoverflow.com/questions/58350524/eigen3-select-rows-out-based-on-column-conditions
+    // remove rows with 0 weight
     Eigen::VectorXi is_selected = (w.array() > 0).cast<int>();
     Eigen::MatrixXd x_new(is_selected.sum(), x.cols());
     Eigen::VectorXd y_new(is_selected.sum());
@@ -116,21 +116,23 @@ public:
     int counter = 0;
     double dev_old = 1000;
     double dev_new = 0;
-    
-    
-    
+    double dev = 0;
     while((counter < 25 && diff > 1e-8) || counter <=3){
+      
+      // iteratively reweight 
       Eigen::VectorXd p = LogisticFunction(x, beta);
       Eigen::VectorXd variance = p.array() * (1 - p.array());
       Eigen::VectorXd modified_response = (variance.array().pow(-1) * (y - p).array());
       Eigen::VectorXd Z = x * beta + modified_response;
+      
+      // least squares
       beta = WeightedLS(x, Z, variance);
       
       // log state
       current_betas_[id] = beta;
       current_iter_[id] = counter;
       all_betas_[id*25 + counter] = beta;
-      
+
       // compute stopping criteria, matches glm
       dev_new = 0;
       for(int i=0; i<n; i++) {
@@ -139,20 +141,9 @@ public:
         }
       }
       dev_new *=2;
-      // Rcpp::Rcout << dev_new << "\n";
       diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
       dev_old = dev_new;
       
-      // prevent spurious wake ups
-      if(ncores_ > 1 && comm_ == 1 && counter <= 2){
-        // Rcpp::Rcout <<"waiting";
-        barrier_lock.wait();
-        beta = AverageBetaIter(all_betas_, counter);
-      }
-      
-      if(ncores_ > 1 && comm_ == 2 && counter <= 2){
-        beta = AverageBetaCurrent(current_betas_, current_iter_, id);
-      }
       counter ++;
     }
     
@@ -165,14 +156,13 @@ public:
   
   // solve logistic regression on a partition of whole data
   void PartitionedRegressionTask(int id, int nrows){
-    // Rcpp::Rcout << "\n starting task "<< id <<"\n";
+    // get data for current task
+    Eigen::MatrixXd x_partition(nrows, x_.cols());
+    Eigen::VectorXd y_partition(nrows);
     
     int start = id*nrows;
     int end = std::min((id+1)*nrows, (int)x_.rows());
-    
-    
-    Eigen::MatrixXd x_partition(end-start, x_.cols());
-    Eigen::VectorXd y_partition(end-start);
+  
     
     int rownew = 0;
     for (int i = start; i < end; i++) {
@@ -181,8 +171,8 @@ public:
       rownew++;
     }
     
+    // solve current task
     Eigen::VectorXd beta = LogisticRegressionTask(x_partition, y_partition, id);
-    // Rcpp::Rcout << "\n" << id << "\t" << beta <<"\n";
     current_betas_[id] = beta;
   }
   
@@ -191,23 +181,21 @@ public:
     
     std::thread workers[ncores_-1];
     if (ncores_ > 1){
+      // start all threads
       for(int i=0; i<ncores_-1; i++){
         // Rcpp::Rcout << std::to_string(i) + "\t";
         workers[i] = std::thread(&Solver::PartitionedRegressionTask, this, i, nrows_per_task);
       }
-      // Rcpp::Rcout << "\n all tasks started \n";
       PartitionedRegressionTask(ncores_-1, nrows_per_task);
+      
+      // wait for all threads to complete
       for(int i=0; i<ncores_-1; i++){
-        // Rcpp::Rcout << "\n about to join worker " << i << "\n";
         workers[i].join();
-        // Rcpp::Rcout << "\n worker " << i << " joined \n";
-        
+
       }
     } else {
       PartitionedRegressionTask(0, nrows_per_task);
     }
-    
-    
     
     // simple average for now 
     Eigen::VectorXd beta_agg = Eigen::VectorXd::Zero(x_.cols(), 1).cast<double>();
@@ -231,8 +219,21 @@ public:
 //' @param x the X matrix in logistic regression
 //' @param y the response matrix in logistic regression
 //' @param ncores the number of cores to use
-//' @param comm indicates communication method. More details to follow...
+//' @param comm indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting
+//' 
+//' @returns beta the estimate logistic regression beta
+//' @returns niter how many iterations each subproblem took to converge
+//' @returns all_betas a list of all betas observed at each iteration. Each 25 row section is another thread with increasing iterations.
 //' @export
+//' @examples
+//' n<- 2000
+//' X <- matrix(rnorm(n*2, mean = 0, sd = 0.05), ncol=2)
+//'   beta <- c(1,2)
+//'   
+//'   prob <- 1 / (1 + exp(-X %*% beta))
+//'   y <- rbinom(n, 1, prob)
+//'   
+//'   ParallelRegression::ParLR(X, y, 2, 1)
 // [[Rcpp::export]]
 Rcpp::List ParLR(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int ncores=1, int comm=0) {
   Solver s(x, y, ncores, comm);
