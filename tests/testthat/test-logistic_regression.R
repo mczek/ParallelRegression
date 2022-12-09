@@ -33,7 +33,7 @@ test_that("parallel with 2 cores", {
   best <- as.vector(logit$coefficients)
 
   expect_equal(as.vector(beta_hat), best, tolerance=0.05)
-  expect_equal(par_model$niter, c(6, 6), tolerance=0.05)
+  expect_equal(par_model$niter, c(6, 6), tolerance=1)
 })
 
 test_that("parallel with 2 cores, comm = 1", {
