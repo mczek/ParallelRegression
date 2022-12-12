@@ -5,8 +5,22 @@
 #' @param x the X matrix in logistic regression
 #' @param y the response matrix in logistic regression
 #' @param ncores the number of cores to use
+#' @param comm indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting, 3 indicates communicating once on a subset and proceeding without communication
+#' 
+#' @returns beta the estimate logistic regression beta
+#' @returns niter how many iterations each subproblem took to converge
+#' @returns all_betas a list of all betas observed at each iteration. Each 25 row section is another thread with increasing iterations.
 #' @export
-ParLR <- function(x, y, ncores = 1L) {
-    .Call(`_ParallelRegression_ParLR`, x, y, ncores)
+#' @examples
+#' n<- 2000
+#' X <- matrix(rnorm(n*2, mean = 0, sd = 0.05), ncol=2)
+#'   beta <- c(1,2)
+#'   
+#'   prob <- 1 / (1 + exp(-X %*% beta))
+#'   y <- rbinom(n, 1, prob)
+#'   
+#'   ParallelRegression::ParLR(X, y, 2, 1)
+ParLR <- function(x, y, ncores = 1L, comm = 0L) {
+    .Call(`_ParallelRegression_ParLR`, x, y, ncores, comm)
 }
 

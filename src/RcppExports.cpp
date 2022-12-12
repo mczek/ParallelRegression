@@ -12,21 +12,22 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // ParLR
-Eigen::VectorXd ParLR(const Eigen::MatrixXd& x, const Eigen::VectorXd& y, int ncores);
-RcppExport SEXP _ParallelRegression_ParLR(SEXP xSEXP, SEXP ySEXP, SEXP ncoresSEXP) {
+Rcpp::List ParLR(const Eigen::MatrixXd& x, const Eigen::VectorXd& y, int ncores, int comm);
+RcppExport SEXP _ParallelRegression_ParLR(SEXP xSEXP, SEXP ySEXP, SEXP ncoresSEXP, SEXP commSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type x(xSEXP);
     Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
     Rcpp::traits::input_parameter< int >::type ncores(ncoresSEXP);
-    rcpp_result_gen = Rcpp::wrap(ParLR(x, y, ncores));
+    Rcpp::traits::input_parameter< int >::type comm(commSEXP);
+    rcpp_result_gen = Rcpp::wrap(ParLR(x, y, ncores, comm));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_ParallelRegression_ParLR", (DL_FUNC) &_ParallelRegression_ParLR, 3},
+    {"_ParallelRegression_ParLR", (DL_FUNC) &_ParallelRegression_ParLR, 4},
     {NULL, NULL, 0}
 };
 
