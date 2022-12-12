@@ -5,7 +5,7 @@
 #' @param x the X matrix in logistic regression
 #' @param y the response matrix in logistic regression
 #' @param ncores the number of cores to use
-#' @param comm indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting
+#' @param comm indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting, 3 indicates communicating once on a subset and proceeding without communication
 #' 
 #' @returns beta the estimate logistic regression beta
 #' @returns niter how many iterations each subproblem took to converge

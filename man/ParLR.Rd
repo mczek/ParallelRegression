@@ -13,7 +13,7 @@ ParLR(x, y, ncores = 1L, comm = 0L)
 
 \item{ncores}{the number of cores to use}
 
-\item{comm}{indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting}
+\item{comm}{indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting, 3 indicates communicating once on a subset and proceeding without communication}
 }
 \value{
 beta the estimate logistic regression beta

@@ -71,17 +71,17 @@ RunExperiment <- function(n, p, s, k){
     glm_time <- system.time(glm_obj <- glm(y ~ X - 1, family="binomial"))
     glm_coeff <- glm_obj$coeff
     time_vec <- c(time_vec, glm_time[3])
-    diff_vec <- c(diff_vec, norm(beta - glm_coeff, "2") / norm(beta, "2"))
+    diff_vec <- c(diff_vec, norm(glm_coeff - glm_coeff, "2") / norm(beta, "2"))
     iter_vec <- c(iter_vec, 0)
   }
   
   # test each communication option
-  comm_opts <- 0:2
+  comm_opts <- 0:3
   for(comm in comm_opts){
     for(i in 1:3){
       new_alg_time <- system.time(new_alg_obj <- ParLR(X, y, k, comm))
       new_alg_coeff <- new_alg_obj$beta 
-      diff_vec <- c(diff_vec, norm(beta - new_alg_coeff, "2") / norm(beta, "2"))
+      diff_vec <- c(diff_vec, norm(glm_coeff - new_alg_coeff, "2") / norm(beta, "2"))
       time_vec <- c(time_vec, new_alg_time[3])
       iter_vec <- c(iter_vec, max(new_alg_obj$niter))
     }
@@ -101,22 +101,19 @@ RunExperiment <- function(n, p, s, k){
 }
 
 results <- list()
-for(n in seq(10000, 30000, by=10000))  {
+for(n in seq(100000, 1000000, by=50000))  {
   for(cores in c(1, 2, 4)){
     print(paste(n, cores))
-    results <- append(results, list(RunExperiment(n, 200, 30, cores)))
+    l <- RunExperiment(n, 200, 30, cores)
+    print(l)
+    results <- append(results, list(l))
   }
 }
 
 # summarize results
 final_results <- rbindlist(results)
-final_results[, .(DiffNormAvg = mean(DiffNorm.V1),
-                  AlgTimeAvg = mean(AlgTime),
-                  TimeDiff2RefAvg = mean(TimeDiff2Ref)),
-              .(n, p, s, k)]
-
 # ignore glm runs
-plot_data <- final_results[comm != "glm", .(error = mean(diff),
+plot_data <- final_results[comm %in% c(0,3) , .(error = mean(diff),
                                             time = median(time),
                                             iter = max(iter)), by=.(n, p, s, k, comm)]
 ggplot(plot_data, aes(x = n,

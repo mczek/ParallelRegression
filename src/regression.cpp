@@ -106,17 +106,49 @@ public:
   
   // solve a logistic regression problem
   Eigen::VectorXd LogisticRegressionTask(const Eigen::MatrixXd & x, const Eigen::VectorXd & y, int id) {
-    // std::string debug = "Hi! I'm thread " + std::to_string(id) + " and I'm getting started\n";
-    // Rcpp::Rcout << debug;
     Eigen::VectorXd beta = Eigen::VectorXd::Ones(x.cols(), 1).cast<double>();
-    // Eigen::VectorXd beta = Eigen::VectorXd::Random(x.cols(), 1).cast<double>();
     int n = (int) x.rows();
+    
+    double dev_old = 0;
+    if (ncores_ > 1 && comm_ == 3){
+      int subset_size = std::max((int)x.cols(), n/ncores_);
+      Eigen::MatrixXd small_x(subset_size, x.cols());
+      Eigen::VectorXd small_y(subset_size);
+      for (int i = 0; i < subset_size; ++i) {
+        small_x.row(i) = x.row(i);
+        small_y.row(i) = y.row(i);
+      }
+      
+      // iteratively reweight
+      Eigen::VectorXd p = LogisticFunction(small_x, beta);
+      Eigen::VectorXd variance = p.array() * (1 - p.array());
+      Eigen::VectorXd modified_response = (variance.array().pow(-1) * (small_y - p).array());
+      Eigen::VectorXd Z = small_x * beta + modified_response;
+
+      // least squares
+      beta = WeightedLS(small_x, Z, variance);
+      all_betas_[id*25] = beta;
+      
+      // compute stopping criteria, matches glm
+      for(int i=0; i<subset_size; i++) {
+        if(p[i] != y[i]){
+          dev_old +=  (small_y[i]*std::log(p[i])) + ((1-small_y[i])*std::log(1-p[i])) ;
+        }
+      }
+      dev_old *=2;
+
+      //
+      // // wait and communicate
+      barrier_lock.wait();
+      beta = AverageBetaIter(all_betas_, 0);
+    }
     
     double diff = 1;
     int counter = 0;
-    double dev_old = 1000;
+
     double dev_new = 0;
-    while((counter < 25 && diff > 1e-8) || counter <=3){
+    double eta = 1;
+    while((counter < 25 && diff > 1e-8) || counter <=2){
       
       // iteratively reweight 
       Eigen::VectorXd p = LogisticFunction(x, beta);
@@ -125,13 +157,15 @@ public:
       Eigen::VectorXd Z = x * beta + modified_response;
       
       // least squares
-      beta = WeightedLS(x, Z, variance);
+      Eigen::VectorXd beta_new = WeightedLS(x, Z, variance);
+      beta  = eta*(beta_new - beta) + beta;
+      
       
       // log state
       current_betas_[id] = beta;
       current_iter_[id] = counter;
       all_betas_[id*25 + counter] = beta;
-
+      
       // compute stopping criteria, matches glm
       dev_new = 0;
       for(int i=0; i<n; i++) {
@@ -140,7 +174,10 @@ public:
         }
       }
       dev_new *=2;
-      diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_old));
+      // if(dev_new < dev_old){
+      //   eta /= 2;
+      // }
+      diff = std::abs(dev_new - dev_old) / (0.1 + std::abs(dev_new));
       dev_old = dev_new;
       
       // prevent spurious wake ups
@@ -169,10 +206,10 @@ public:
     // get data for current task
     int start = id*nrows;
     int end = std::min((id+1)*nrows, (int)x_.rows());
-
+    
     Eigen::MatrixXd x_partition(end-start, x_.cols());
     Eigen::VectorXd y_partition(end-start);
-  
+    
     
     int rownew = 0;
     for (int i = start; i < end; i++) {
@@ -201,7 +238,7 @@ public:
       // wait for all threads to complete
       for(int i=0; i<ncores_-1; i++){
         workers[i].join();
-
+        
       }
     } else {
       PartitionedRegressionTask(0, nrows_per_task);
@@ -229,7 +266,7 @@ public:
 //' @param x the X matrix in logistic regression
 //' @param y the response matrix in logistic regression
 //' @param ncores the number of cores to use
-//' @param comm indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting
+//' @param comm indicates communication method. 0 indicates no communication, 1 indicates communication with waiting, 2 indicates communication without waiting, 3 indicates communicating once on a subset and proceeding without communication
 //' 
 //' @returns beta the estimate logistic regression beta
 //' @returns niter how many iterations each subproblem took to converge
