@@ -5,7 +5,7 @@
 [![R-CMD-check](https://github.com/mczek/ParallelRegression/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/mczek/ParallelRegression/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-The goal of ParallelRegression is to …
+The goal of ParallelRegression is to implement several algorithms for computing logistic regression parameters in parallel.
 
 ## Installation
 
